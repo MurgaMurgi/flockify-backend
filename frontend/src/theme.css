@@ -1,0 +1,26 @@
+:root {
+  --color-primary: #d97a00; /* Amber */
+  --color-primary-light: #f2b766;
+
+  --color-dark: #1a1a1a; /* Dark Sidebar */
+  --color-dark-light: #262626;
+
+  --color-light-bg: #f5f6f7; /* Dashboard background */
+  --color-white: #ffffff;
+
+  --text-primary: #222;
+  --text-light: #f5f5f5;
+
+  --sidebar-width: 260px;
+
+  --radius-card: 16px;
+  --radius-btn: 12px;
+
+  --shadow-soft: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-medium: 0 6px 20px rgba(0,0,0,0.12);
+
+  --space-xs: 6px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+}

@@ -1,0 +1,143 @@
+/* Page Layout */
+.batch-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1e293b;
+    /* Slate 800 */
+    margin-bottom: 32px;
+    letter-spacing: -0.02em;
+}
+
+/* Grid Layout */
+.batch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+}
+
+/* Card Styling */
+.batch-card {
+    background: #ffffff;
+    border-radius: 16px;
+    /* Apple-style */
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+    /* Slate 200 */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.batch-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    border-color: #cbd5e1;
+    /* Slate 300 */
+}
+
+/* Header Section */
+.batch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+    /* Slate 100 */
+}
+
+.batch-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    /* Slate 900 */
+    margin: 0;
+}
+
+.shed {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #0ea5e9;
+    /* Sky 500 - Medical Tech Blue */
+    background: #e0f2fe;
+    /* Sky 100 */
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Details Typography */
+.batch-card p {
+    font-size: 0.9rem;
+    color: #475569;
+    /* Slate 600 */
+    margin: 0;
+    line-height: 1.5;
+    display: flex;
+    justify-content: space-between;
+}
+
+.batch-card p strong {
+    font-weight: 600;
+    color: #334155;
+    /* Slate 700 */
+    margin-right: 8px;
+}
+
+/* Notes Section */
+.notes {
+    margin-top: 12px !important;
+    padding-top: 12px;
+    border-top: 1px dashed #e2e8f0;
+    font-size: 0.85rem !important;
+    color: #64748b !important;
+    /* Slate 500 */
+    font-style: italic;
+    display: block !important;
+    /* Override flex */
+}
+
+.notes strong {
+    font-style: normal;
+    color: #475569;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+    .batch-container {
+        padding: 24px 16px;
+    }
+
+    .batch-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .batch-card {
+        padding: 20px;
+    }
+}
