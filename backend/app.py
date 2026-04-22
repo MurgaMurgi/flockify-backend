@@ -169,14 +169,13 @@ app.add_middleware(
 # 🔷 DB INITIALIZATION FUNCTION
 # ======================================================
 def init_db(engine):
-
+    # ── Phase 1: DDL – all CREATE TABLE first, then all ALTER TABLE ───────────
     with engine.begin() as conn:
 
-        # -------------------------------
-        # ADMIN USERS
-        # -------------------------------
+        # ── CREATE TABLES (FK dependency order) ──────────────────────────────
+
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS AdminUsers (
+            CREATE TABLE IF NOT EXISTS adminusers (
                 admin_id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 name TEXT,
@@ -188,126 +187,57 @@ def init_db(engine):
             );
         """))
 
-        # Password storage (AES-256-GCM + PBKDF2 hash for verification)
         conn.execute(text("""
-            ALTER TABLE AdminUsers
-            ADD COLUMN IF NOT EXISTS password_hash TEXT,
-            ADD COLUMN IF NOT EXISTS password_salt TEXT,
-            ADD COLUMN IF NOT EXISTS password_enc TEXT,
-            ADD COLUMN IF NOT EXISTS password_nonce TEXT;
-        """))
-
-        # -------------------------------
-        # FARMS
-        # -------------------------------
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS Farms (
+            CREATE TABLE IF NOT EXISTS farms (
                 farm_id SERIAL PRIMARY KEY,
-                admin_id INTEGER NOT NULL REFERENCES AdminUsers(admin_id) ON DELETE CASCADE,
-
+                admin_id INTEGER NOT NULL REFERENCES adminusers(admin_id) ON DELETE CASCADE,
                 farm_name TEXT NOT NULL,
                 supervisor_name TEXT NOT NULL,
                 supervisor_phone TEXT NOT NULL,
                 farm_location TEXT NOT NULL,
-
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """))
 
         conn.execute(text("""
-            ALTER TABLE Farms
-            ADD COLUMN IF NOT EXISTS farm_owner_name TEXT,
-            ADD COLUMN IF NOT EXISTS farm_owner_phone TEXT,
-            ADD COLUMN IF NOT EXISTS farm_owner_email TEXT;
-        """))
-        conn.execute(text("ALTER TABLE Farms ADD COLUMN IF NOT EXISTS farm_seq INTEGER;"))
-        conn.execute(text("ALTER TABLE Sheds  ADD COLUMN IF NOT EXISTS shed_seq INTEGER;"))
-
-        # -------------------------------
-        # SHEDS
-        # -------------------------------
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS Sheds (
+            CREATE TABLE IF NOT EXISTS sheds (
                 shed_id SERIAL PRIMARY KEY,
-
-                farm_id INTEGER NOT NULL
-                    REFERENCES Farms(farm_id)
-                    ON DELETE CASCADE,
-
+                farm_id INTEGER NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
                 shed_number TEXT NOT NULL,
-
                 bird_category TEXT,
                 bird_breed TEXT,
-
                 initial_bird_count INTEGER,
-
                 area_value NUMERIC NOT NULL,
                 area_unit TEXT NOT NULL,
-
                 placement_date DATE,
-
                 shed_status TEXT NOT NULL DEFAULT 'active',
-
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """))
 
-        conn.execute(text("""ALTER TABLE Sheds ADD COLUMN IF NOT EXISTS no_of_feeders INTEGER;"""))
-        conn.execute(text("""ALTER TABLE Sheds ADD COLUMN IF NOT EXISTS no_of_water_nipples INTEGER;"""))
-        conn.execute(text("""ALTER TABLE Sheds ADD COLUMN IF NOT EXISTS perch_angle INTEGER;"""))
-        conn.execute(text("""ALTER TABLE Sheds ADD COLUMN IF NOT EXISTS perch_length_value NUMERIC;"""))
-        conn.execute(text("""ALTER TABLE Sheds ADD COLUMN IF NOT EXISTS perch_length_unit TEXT DEFAULT 'ft';"""))
-        conn.execute(text("""ALTER TABLE Sheds ADD COLUMN IF NOT EXISTS shed_type TEXT DEFAULT 'free_range';"""))
         conn.execute(text("""
-            ALTER TABLE Sheds 
-            ADD COLUMN IF NOT EXISTS open_area_value NUMERIC;
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE Sheds 
-            ADD COLUMN IF NOT EXISTS open_area_unit TEXT DEFAULT 'sqft';
-        """))
-
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS Batches (
+            CREATE TABLE IF NOT EXISTS batches (
                 batch_id SERIAL PRIMARY KEY,
-
-                shed_id INTEGER NOT NULL 
-                    REFERENCES Sheds(shed_id) 
-                    ON DELETE CASCADE,
-
-                farm_id INTEGER NOT NULL
-                    REFERENCES Farms(farm_id)
-                    ON DELETE CASCADE,
-
+                shed_id INTEGER NOT NULL REFERENCES sheds(shed_id) ON DELETE CASCADE,
+                farm_id INTEGER NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
                 placement_date DATE NOT NULL,
                 depletion_date DATE,
-
                 bird_category TEXT,
                 bird_breed TEXT,
-
                 initial_bird_count INTEGER NOT NULL,
                 final_bird_count INTEGER,
-
                 status TEXT NOT NULL DEFAULT 'active',
                 notes TEXT,
-
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """))
-        
 
-
-
-        # -------------------------------
-        # SUPERVISORS
-        # -------------------------------
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS Supervisors (
+            CREATE TABLE IF NOT EXISTS supervisors (
                 supervisor_id SERIAL PRIMARY KEY,
-                admin_id INTEGER NOT NULL REFERENCES AdminUsers(admin_id) ON DELETE CASCADE,
-                farm_id INTEGER NOT NULL REFERENCES Farms(farm_id) ON DELETE CASCADE,
+                admin_id INTEGER NOT NULL REFERENCES adminusers(admin_id) ON DELETE CASCADE,
+                farm_id INTEGER NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
                 supervisor_name TEXT NOT NULL,
                 supervisor_phone TEXT NOT NULL,
                 supervisor_email TEXT NOT NULL,
@@ -315,273 +245,132 @@ def init_db(engine):
             );
         """))
 
-        # -------------------------------
-        # DAILY ENTRIES (BIRD)
-        # -------------------------------
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS DailyEntries (
+            CREATE TABLE IF NOT EXISTS dailyentries (
                 entry_id SERIAL PRIMARY KEY,
-                shed_id INTEGER NOT NULL REFERENCES Sheds(shed_id) ON DELETE CASCADE,
-
+                shed_id INTEGER NOT NULL REFERENCES sheds(shed_id) ON DELETE CASCADE,
                 entry_date DATE NOT NULL,
-
                 mortality INTEGER NOT NULL DEFAULT 0,
                 culling INTEGER NOT NULL DEFAULT 0,
                 culling_reason TEXT,
-
                 feed_consumption_kg NUMERIC,
                 temperature NUMERIC,
                 ammonia_level INTEGER,
-
                 medical_attention BOOLEAN DEFAULT FALSE,
                 medical_notes TEXT,
-
                 proof_pdf TEXT,
-
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             );
         """))
 
         conn.execute(text("""
-            ALTER TABLE DailyEntries
-                DROP COLUMN IF EXISTS ammonia_level,
-                ADD COLUMN IF NOT EXISTS water_consumed_ltrs NUMERIC,
-                ADD COLUMN IF NOT EXISTS lighting_hours NUMERIC;
-        """))   
-        conn.execute(text("""
-            ALTER TABLE DailyEntries
-                ADD COLUMN IF NOT EXISTS mortality_reason TEXT;
-        """))   
-
-        conn.execute(text("""
-            ALTER TABLE DailyEntries
-            ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES Batches(batch_id);
-        """))
-
-
-
-        # -------------------------------
-        # EGG DAILY RECORDS (PER SHED BATCH)
-        # -------------------------------
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS EggDailyRecords (
+            CREATE TABLE IF NOT EXISTS eggdailyrecords (
                 egg_id SERIAL PRIMARY KEY,
-
-                farm_id INTEGER NOT NULL REFERENCES Farms(farm_id) ON DELETE CASCADE,
-                shed_id INTEGER NOT NULL REFERENCES Sheds(shed_id) ON DELETE CASCADE,
-
+                farm_id INTEGER NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
+                shed_id INTEGER NOT NULL REFERENCES sheds(shed_id) ON DELETE CASCADE,
                 batch_no TEXT NOT NULL,
-
                 collection_date DATE NOT NULL DEFAULT CURRENT_DATE,
                 collection_timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-
                 good_eggs INTEGER NOT NULL DEFAULT 0,
                 floor_eggs INTEGER NOT NULL DEFAULT 0,
                 broken_cracked_eggs INTEGER NOT NULL DEFAULT 0,
                 mishapped_eggs INTEGER NOT NULL DEFAULT 0,
-
                 wastage INTEGER GENERATED ALWAYS AS (broken_cracked_eggs + mishapped_eggs) STORED,
-
                 proof_pdf TEXT,
-
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             );
         """))
 
-        # -------------------------------
-        # EGG DISPATCH RECORDS
-        # -------------------------------
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS EggDispatchRecords (
+            CREATE TABLE IF NOT EXISTS eggdispatchrecords (
                 dispatch_id SERIAL PRIMARY KEY,
-
-                farm_id INTEGER NOT NULL REFERENCES Farms(farm_id) ON DELETE CASCADE,
-                shed_id INTEGER REFERENCES Sheds(shed_id) ON DELETE CASCADE,
-                batch_id INTEGER REFERENCES Batches(batch_id) ON DELETE CASCADE,
-
+                farm_id INTEGER NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
+                shed_id INTEGER REFERENCES sheds(shed_id) ON DELETE CASCADE,
+                batch_id INTEGER REFERENCES batches(batch_id) ON DELETE CASCADE,
                 dispatched_good_eggs INTEGER NOT NULL DEFAULT 0,
                 dispatched_floor_mis_eggs INTEGER NOT NULL DEFAULT 0,
-
                 dispatch_date DATE NOT NULL DEFAULT CURRENT_DATE,
                 status TEXT NOT NULL DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """))
 
-        # Backfill / idempotent alter for existing DBs
         conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ADD COLUMN IF NOT EXISTS status TEXT;
-        """))
-
-        conn.execute(text("""
-            UPDATE EggDispatchRecords
-            SET status = COALESCE(status, 'pending')
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ALTER COLUMN status SET DEFAULT 'pending';
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ALTER COLUMN status SET NOT NULL;
-        """))
-
-        # Keep schema backward compatible while enabling shed-level dispatch
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ADD COLUMN IF NOT EXISTS shed_id INTEGER REFERENCES Sheds(shed_id) ON DELETE CASCADE;
-        """))
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES Batches(batch_id) ON DELETE CASCADE;
-        """))
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ADD COLUMN IF NOT EXISTS batch_no TEXT;
-        """))
-        conn.execute(text("""
-            DO $$
-            BEGIN
-                ALTER TABLE EggDispatchRecords
-                DROP CONSTRAINT IF EXISTS uq_eggdispatchrecords_shed_batch_date;
-            EXCEPTION
-                WHEN undefined_object THEN NULL;
-            END $$;
-        """))
-        conn.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_eggdispatchrecords_shed_batch_date
-            ON EggDispatchRecords (shed_id, batch_id, dispatch_date);
-        """))
-        conn.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_eggdispatchrecords_shed_batch
-            ON EggDispatchRecords (shed_id, batch_id);
-        """))
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ADD COLUMN IF NOT EXISTS dispatched_good_eggs INTEGER NOT NULL DEFAULT 0;
-        """))
-    
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ADD COLUMN IF NOT EXISTS dispatched_floor_mis_eggs INTEGER NOT NULL DEFAULT 0;
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            DROP COLUMN IF EXISTS dispatched_qty;
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE EggDispatchRecords
-            ADD COLUMN IF NOT EXISTS status TEXT;
-        """))
-
-
-        # -------------------------------
-        # FARM-LEVEL EGG STOCK HISTORY
-        # -------------------------------
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS EggFarmStockHistory (
+            CREATE TABLE IF NOT EXISTS eggfarmstockhistory (
                 id SERIAL PRIMARY KEY,
-
-                farm_id INTEGER NOT NULL REFERENCES Farms(farm_id) ON DELETE CASCADE,
-
+                farm_id INTEGER NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
                 record_date DATE NOT NULL,
-
                 opening_good INTEGER NOT NULL DEFAULT 0,
                 opening_floor_mis INTEGER NOT NULL DEFAULT 0,
-
                 collected_good INTEGER NOT NULL DEFAULT 0,
                 collected_floor_mis INTEGER NOT NULL DEFAULT 0,
-
                 dispatched_good INTEGER NOT NULL DEFAULT 0,
                 dispatched_floor_mis INTEGER NOT NULL DEFAULT 0,
-
                 closing_good INTEGER NOT NULL,
                 closing_floor_mis INTEGER NOT NULL,
-
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """))
 
-        # -------------------------------
-        # BIRD STOCK HISTORY
-        # -------------------------------
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS BirdStockHistory (
+            CREATE TABLE IF NOT EXISTS birdstockhistory (
                 id SERIAL PRIMARY KEY,
-                shed_id INTEGER NOT NULL REFERENCES Sheds(shed_id) ON DELETE CASCADE,
+                shed_id INTEGER NOT NULL REFERENCES sheds(shed_id) ON DELETE CASCADE,
                 entry_date DATE NOT NULL,
-
                 mortality INTEGER NOT NULL DEFAULT 0,
                 culling INTEGER NOT NULL DEFAULT 0,
-
                 birds_opening INTEGER NOT NULL,
                 birds_closing INTEGER NOT NULL,
-
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             );
         """))
+
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS BirdTransfers (
+            CREATE TABLE IF NOT EXISTS birdtransfers (
                 transfer_id SERIAL PRIMARY KEY,
-                farm_id INTEGER NOT NULL REFERENCES Farms(farm_id) ON DELETE CASCADE,
-                from_shed_id INTEGER NOT NULL REFERENCES Sheds(shed_id) ON DELETE CASCADE,
-                to_shed_id INTEGER NOT NULL REFERENCES Sheds(shed_id) ON DELETE CASCADE,
+                farm_id INTEGER NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
+                from_shed_id INTEGER NOT NULL REFERENCES sheds(shed_id) ON DELETE CASCADE,
+                to_shed_id INTEGER NOT NULL REFERENCES sheds(shed_id) ON DELETE CASCADE,
                 bird_count INTEGER NOT NULL CHECK (bird_count > 0),
                 transferred_at TIMESTAMP NOT NULL DEFAULT NOW()
             );
         """))
 
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS WeeklyEntries (
+            CREATE TABLE IF NOT EXISTS weeklyentries (
                 weekly_id SERIAL PRIMARY KEY,
-
-                farm_id INT NOT NULL REFERENCES Farms(farm_id) ON DELETE CASCADE,
-                shed_id INT NOT NULL REFERENCES Sheds(shed_id) ON DELETE CASCADE,
-
+                farm_id INT NOT NULL REFERENCES farms(farm_id) ON DELETE CASCADE,
+                shed_id INT NOT NULL REFERENCES sheds(shed_id) ON DELETE CASCADE,
                 entry_date DATE NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW(),
-
                 ammonia_level FLOAT,
                 avg_bird_weight FLOAT,
                 weekly_notes TEXT,
-
                 proof_pdf TEXT
             );
         """))
-        conn.execute(text("""
-            ALTER TABLE WeeklyEntries
-            ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES Batches(batch_id);
-        """))
 
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS SuperAdmins (
+            CREATE TABLE IF NOT EXISTS superadmins (
                 super_admin_id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 name TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """))
+
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS AllowedUsers (
+            CREATE TABLE IF NOT EXISTS allowedusers (
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 name TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """))
-    
-        # -------------------------------
-        # PASSWORD RESET TOKENS
-        # -------------------------------
-        # Store only token hashes (never raw tokens) and mark them used once redeemed.
+
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS password_reset_tokens (
                 id SERIAL PRIMARY KEY,
@@ -593,22 +382,76 @@ def init_db(engine):
             );
         """))
 
+        # ── ALTER TABLES (all tables guaranteed to exist above) ───────────────
+
         conn.execute(text("""
-            ALTER TABLE BirdStockHistory
-            ADD COLUMN IF NOT EXISTS batch_id INTEGER
-                REFERENCES Batches(batch_id)
-                ON DELETE CASCADE;
+            ALTER TABLE adminusers
+            ADD COLUMN IF NOT EXISTS password_hash TEXT,
+            ADD COLUMN IF NOT EXISTS password_salt TEXT,
+            ADD COLUMN IF NOT EXISTS password_enc TEXT,
+            ADD COLUMN IF NOT EXISTS password_nonce TEXT;
         """))
 
         conn.execute(text("""
-            ALTER TABLE EggDailyRecords
-            ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES Batches(batch_id);
+            ALTER TABLE farms
+            ADD COLUMN IF NOT EXISTS farm_owner_name TEXT,
+            ADD COLUMN IF NOT EXISTS farm_owner_phone TEXT,
+            ADD COLUMN IF NOT EXISTS farm_owner_email TEXT,
+            ADD COLUMN IF NOT EXISTS farm_seq INTEGER;
         """))
 
-        # ------------------------------------------------------------------
-        # Legacy tables (warehouse + CRM / orders stack). Not used by the app.
-        # Drop if present from older deployments (children before parents).
-        # ------------------------------------------------------------------
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS shed_seq INTEGER;"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS no_of_feeders INTEGER;"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS no_of_water_nipples INTEGER;"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS perch_angle INTEGER;"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS perch_length_value NUMERIC;"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS perch_length_unit TEXT DEFAULT 'ft';"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS shed_type TEXT DEFAULT 'free_range';"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS open_area_value NUMERIC;"))
+        conn.execute(text("ALTER TABLE sheds ADD COLUMN IF NOT EXISTS open_area_unit TEXT DEFAULT 'sqft';"))
+
+        conn.execute(text("""
+            ALTER TABLE dailyentries
+            DROP COLUMN IF EXISTS ammonia_level,
+            ADD COLUMN IF NOT EXISTS water_consumed_ltrs NUMERIC,
+            ADD COLUMN IF NOT EXISTS lighting_hours NUMERIC,
+            ADD COLUMN IF NOT EXISTS mortality_reason TEXT,
+            ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES batches(batch_id);
+        """))
+
+        conn.execute(text("ALTER TABLE eggdailyrecords ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES batches(batch_id);"))
+
+        conn.execute(text("ALTER TABLE eggdispatchrecords ADD COLUMN IF NOT EXISTS status TEXT;"))
+        conn.execute(text("UPDATE eggdispatchrecords SET status = 'pending' WHERE status IS NULL;"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords ALTER COLUMN status SET DEFAULT 'pending';"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords ALTER COLUMN status SET NOT NULL;"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords ADD COLUMN IF NOT EXISTS shed_id INTEGER REFERENCES sheds(shed_id) ON DELETE CASCADE;"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES batches(batch_id) ON DELETE CASCADE;"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords ADD COLUMN IF NOT EXISTS batch_no TEXT;"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords ADD COLUMN IF NOT EXISTS dispatched_good_eggs INTEGER NOT NULL DEFAULT 0;"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords ADD COLUMN IF NOT EXISTS dispatched_floor_mis_eggs INTEGER NOT NULL DEFAULT 0;"))
+        conn.execute(text("ALTER TABLE eggdispatchrecords DROP COLUMN IF EXISTS dispatched_qty;"))
+        conn.execute(text("""
+            DO $$
+            BEGIN
+                ALTER TABLE eggdispatchrecords
+                DROP CONSTRAINT IF EXISTS uq_eggdispatchrecords_shed_batch_date;
+            EXCEPTION
+                WHEN undefined_object THEN NULL;
+            END $$;
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_eggdispatchrecords_shed_batch_date
+            ON eggdispatchrecords (shed_id, batch_id, dispatch_date);
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_eggdispatchrecords_shed_batch
+            ON eggdispatchrecords (shed_id, batch_id);
+        """))
+
+        conn.execute(text("ALTER TABLE birdstockhistory ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES batches(batch_id) ON DELETE CASCADE;"))
+        conn.execute(text("ALTER TABLE weeklyentries ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES batches(batch_id);"))
+
         for _drop_sql in (
             "DROP TABLE IF EXISTS warehouseeggintake CASCADE",
             "DROP TABLE IF EXISTS warehouseeggintakes CASCADE",
@@ -619,11 +462,10 @@ def init_db(engine):
         ):
             conn.execute(text(_drop_sql))
 
-
     # ── Phase 2: Auth columns (separate transaction so DDL commits first) ─────
     with engine.begin() as conn:
         conn.execute(text("""
-            ALTER TABLE AdminUsers
+            ALTER TABLE adminusers
             ADD COLUMN IF NOT EXISTS user_id TEXT,
             ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin',
             ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
@@ -632,66 +474,58 @@ def init_db(engine):
             ADD COLUMN IF NOT EXISTS bcrypt_hash TEXT,
             ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,
             ADD COLUMN IF NOT EXISTS start_date DATE,
-            ADD COLUMN IF NOT EXISTS end_date DATE
+            ADD COLUMN IF NOT EXISTS end_date DATE;
         """))
 
-    # Make user_id unique if not already (own transaction to avoid failures)
     try:
         with engine.begin() as conn:
             conn.execute(text("""
-                ALTER TABLE AdminUsers ADD CONSTRAINT adminusers_user_id_key UNIQUE (user_id)
+                ALTER TABLE adminusers ADD CONSTRAINT adminusers_user_id_key UNIQUE (user_id);
             """))
     except Exception:
-        pass  # constraint already exists
+        pass
 
     # ── Phase 3: Data seeds (separate transaction) ───────────────────────────
     with engine.begin() as conn:
-        # Backfill user_id = email for pre-existing users
         conn.execute(text("""
-            UPDATE AdminUsers SET user_id = email
-            WHERE user_id IS NULL AND email IS NOT NULL
+            UPDATE adminusers SET user_id = email
+            WHERE user_id IS NULL AND email IS NOT NULL;
         """))
-        # Backfill any still-null user_id
         conn.execute(text("""
-            UPDATE AdminUsers SET user_id = 'user_' || admin_id::text
-            WHERE user_id IS NULL
+            UPDATE adminusers SET user_id = 'user_' || admin_id::text
+            WHERE user_id IS NULL;
         """))
-        # Fix SERIAL sequence to be past all manually-inserted admin_ids
         conn.execute(text("""
             SELECT setval('adminusers_admin_id_seq',
-                GREATEST((SELECT COALESCE(MAX(admin_id), 0) FROM AdminUsers), 1))
+                GREATEST((SELECT COALESCE(MAX(admin_id), 0) FROM adminusers), 1));
         """))
 
-        # Upsert superadmin — user_id = email so they can log in with their email
         _sa_hash = _bcrypt_lib.hashpw(b"admin123", _bcrypt_lib.gensalt()).decode()
         conn.execute(text("""
-            INSERT INTO AdminUsers (user_id, email, name, role, must_change_password, bcrypt_hash)
+            INSERT INTO adminusers (user_id, email, name, role, must_change_password, bcrypt_hash)
             VALUES ('mahirmadhani@gmail.com', 'mahirmadhani@gmail.com', 'Super Admin', 'superadmin', false, :h)
             ON CONFLICT (email) DO UPDATE
-                SET user_id            = 'mahirmadhani@gmail.com',
-                    role               = 'superadmin',
+                SET user_id              = 'mahirmadhani@gmail.com',
+                    role                 = 'superadmin',
                     must_change_password = false,
-                    bcrypt_hash        = COALESCE(AdminUsers.bcrypt_hash, EXCLUDED.bcrypt_hash)
+                    bcrypt_hash          = COALESCE(adminusers.bcrypt_hash, EXCLUDED.bcrypt_hash);
         """), {"h": _sa_hash})
 
-        # Backfill farm_seq (sequential per admin) for existing rows
         conn.execute(text("""
-            UPDATE Farms f SET farm_seq = sub.rn
-            FROM (SELECT farm_id, ROW_NUMBER() OVER (PARTITION BY admin_id ORDER BY farm_id) AS rn FROM Farms) sub
-            WHERE f.farm_id = sub.farm_id AND f.farm_seq IS NULL
+            UPDATE farms f SET farm_seq = sub.rn
+            FROM (SELECT farm_id, ROW_NUMBER() OVER (PARTITION BY admin_id ORDER BY farm_id) AS rn FROM farms) sub
+            WHERE f.farm_id = sub.farm_id AND f.farm_seq IS NULL;
         """))
-        # Backfill shed_seq (sequential per farm) for existing rows
         conn.execute(text("""
-            UPDATE Sheds s SET shed_seq = sub.rn
-            FROM (SELECT shed_id, ROW_NUMBER() OVER (PARTITION BY farm_id ORDER BY shed_id) AS rn FROM Sheds) sub
-            WHERE s.shed_id = sub.shed_id AND s.shed_seq IS NULL
+            UPDATE sheds s SET shed_seq = sub.rn
+            FROM (SELECT shed_id, ROW_NUMBER() OVER (PARTITION BY farm_id ORDER BY shed_id) AS rn FROM sheds) sub
+            WHERE s.shed_id = sub.shed_id AND s.shed_seq IS NULL;
         """))
 
 
-
-
-# Run DB setup on startup
-init_db(engine)
+@app.on_event("startup")
+def startup_event():
+    init_db(engine)
 
 
 # ======================================================
