@@ -525,7 +525,14 @@ def init_db(engine):
 
 @app.on_event("startup")
 def startup_event():
-    init_db(engine)
+    try:
+        print("🚀 Starting DB init...")
+        init_db(engine)
+        print("✅ DB init complete")
+    except Exception as e:
+        import traceback
+        print("❌ DB INIT FAILED:", str(e))
+        traceback.print_exc()
 
 
 # ======================================================
