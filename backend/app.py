@@ -1159,22 +1159,24 @@ def admin_export_user(target_admin_id: int, _=Depends(_require_superadmin)):
     )
 
 
-# Legacy login endpoint — supports both user_id and email key
+class LegacyLoginModel(BaseModel):
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    password: str
+
+
+# Legacy login endpoint — supports user_id or email key
 @app.post("/api/login")
-async def login_legacy(request: Request):
-    body = await request.json()
-    uid = body.get("user_id") or body.get("email", "")
-    pwd = body.get("password", "")
-    return auth_login(AuthLoginModel(user_id=uid, password=pwd))
+def login_legacy(data: LegacyLoginModel):
+    uid = data.user_id or data.email or ""
+    return auth_login(AuthLoginModel(user_id=uid, password=data.password))
 
 
 # Superadmin login via user_id/password
 @app.post("/api/superadmin_login")
-async def superadmin_login_legacy(request: Request):
-    body = await request.json()
-    uid = body.get("user_id") or body.get("email", "superadmin")
-    pwd = body.get("password", "")
-    result = auth_login(AuthLoginModel(user_id=uid, password=pwd))
+def superadmin_login_legacy(data: LegacyLoginModel):
+    uid = data.user_id or data.email or "superadmin"
+    result = auth_login(AuthLoginModel(user_id=uid, password=data.password))
     if result["data"]["role"] not in ("superadmin", "super_admin"):
         raise HTTPException(403, "Not a superadmin account")
     result["token"] = result["access_token"]
@@ -1396,16 +1398,6 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
-class AdminAuthModel(BaseModel):
-    email: EmailStr
-    password: str
-
-
-@app.post("/api/login")
-async def login(data: AdminAuthModel):
-    print(f"DEV MODE: Auto-login for {data.email}")
-    return {"status": True, "access_token": "dev", "data": {"admin_id": 1}}
 
 
 class AdminFarmUpdate(BaseModel):
