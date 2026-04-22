@@ -108,6 +108,9 @@ _ensure_whatsapp_excel_templates()
 # ======================================================
 app = FastAPI()
 
+@app.get("/")
+def root():
+    return {"status": "backend live 🚀"}
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/whatsapp_templates", StaticFiles(directory=WHATSAPP_TEMPLATES_DIR), name="whatsapp_templates")
