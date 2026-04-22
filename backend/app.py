@@ -511,7 +511,7 @@ def init_db(engine):
                 SET user_id              = 'mahirmadhani@gmail.com',
                     role                 = 'superadmin',
                     must_change_password = false,
-                    bcrypt_hash          = COALESCE(adminusers.bcrypt_hash, EXCLUDED.bcrypt_hash);
+                    bcrypt_hash = EXCLUDED.bcrypt_hash;
         """), {"h": _sa_hash})
 
         conn.execute(text("""
