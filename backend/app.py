@@ -1166,7 +1166,7 @@ class LegacyLoginModel(BaseModel):
 
 
 # Legacy login endpoint — supports user_id or email key
-@app.post("/api/login")
+@app.post("/api/auth/login")
 def login_legacy(data: LegacyLoginModel):
     uid = data.user_id or data.email or ""
     return auth_login(AuthLoginModel(user_id=uid, password=data.password))
