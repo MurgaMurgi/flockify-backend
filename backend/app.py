@@ -778,6 +778,7 @@ def auth_login(data: AuthLoginModel):
     token = create_access_token({
         "admin_id": row["admin_id"],
         "user_id":  row["user_id"],
+        "email":    row["email"],
         "role":     row["role"],
     }, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
 
@@ -6977,8 +6978,8 @@ def get_current_super_admin_email(authorization: str = Header(None)) -> str:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     role = payload.get("role")
-    email = payload.get("email")
-    if role != "super_admin":
+    email = payload.get("email") or payload.get("user_id")
+    if role not in ("superadmin", "super_admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
     if not email:
         raise HTTPException(status_code=401, detail="Invalid token")

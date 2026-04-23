@@ -3,8 +3,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./login.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE;
-
 export default function Login() {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
@@ -17,13 +15,18 @@ export default function Login() {
       setError("Please enter your User ID and password");
       return;
     }
+
     setError("");
     setLoading(true);
+
     try {
-      const res = await axios.post(`${API_BASE}/api/auth/login`, {
-        user_id: userId.trim(),
-        password,
-      });
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_BASE}/api/login`,
+        {
+          user_id: userId.trim(),
+          password,
+        }
+      );
 
       const { access_token, must_change_password, data } = res.data;
 
@@ -32,21 +35,23 @@ export default function Login() {
       localStorage.setItem("adminUser", JSON.stringify(data));
       localStorage.setItem("user_role", data.role);
 
-      // Must change password takes priority
+      // Force password change if required
       if (must_change_password) {
         navigate("/change-password");
         return;
       }
 
-      // Route by role
+      // Route based on role
       if (data.role === "superadmin" || data.role === "super_admin") {
         navigate("/superadmin");
       } else {
         navigate("/dashboard");
       }
+
     } catch (err) {
       setError(
-        err.response?.data?.detail || "Login failed. Please check your credentials."
+        err.response?.data?.detail ||
+        "Login failed. Please check your credentials."
       );
     } finally {
       setLoading(false);
@@ -60,6 +65,7 @@ export default function Login() {
           <img src="/5.png" alt="Flockify" className="login-logo-chicken" />
           <img src="/6.png" alt="Flockify" className="login-logo-text" />
         </div>
+
         <h1>Welcome to Flockify</h1>
         <p className="subtitle">Smart farm management, simplified</p>
 
@@ -95,7 +101,6 @@ export default function Login() {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
-
       </div>
     </div>
   );
