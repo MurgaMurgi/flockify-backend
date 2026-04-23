@@ -642,7 +642,13 @@ def admin_all_data(_=Depends(_require_superadmin)):
                 "entries":  fetch("SELECT * FROM DailyEntries ORDER BY entry_date DESC LIMIT 500"),
                 "egg":      fetch("SELECT * FROM EggDailyRecords ORDER BY collection_date DESC LIMIT 500"),
                 "dispatch": fetch("SELECT * FROM EggDispatchRecords ORDER BY dispatch_date DESC LIMIT 500"),
-                "weekly":   fetch("SELECT * FROM WeeklyEntries ORDER BY entry_date DESC LIMIT 500"),
+               "weekly": fetch("""
+                    SELECT w.*, f.admin_id
+                    FROM WeeklyEntries w
+                    JOIN Farms f ON w.farm_id = f.farm_id
+                    ORDER BY w.entry_date DESC
+                    LIMIT 500
+                """),
             }
     except Exception as e:
         print("\u274c admin all-data error:", e)
