@@ -161,8 +161,8 @@ SMTP_USE_TLS = True
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=FRONTEND_URLS,  # secure (explicit allowlist)
-    allow_credentials=True,
+    allow_origins=["*"],  # secure (explicit allowlist)
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
