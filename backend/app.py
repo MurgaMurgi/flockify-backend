@@ -2,7 +2,7 @@ import json
 import requests
 from datetime import timedelta
 from fastapi import FastAPI, Request, HTTPException, Depends, Header, status
-from pydantic import BaseModel, EmailStr, conint
+from pydantic import BaseModel, EmailStr, conint, model_validator
 from sqlalchemy import create_engine, text, bindparam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query
@@ -703,8 +703,17 @@ def logout():
 # ======================================================
 
 class AuthLoginModel(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
+    email: Optional[str] = None
     password: str
+
+    @model_validator(mode="after")
+    def _normalize(self) -> "AuthLoginModel":
+        identifier = (self.user_id or self.email or "").strip()
+        if not identifier:
+            raise ValueError("user_id or email is required")
+        self.user_id = identifier
+        return self
 
 
 class AuthChangePasswordModel(BaseModel):
@@ -1159,24 +1168,12 @@ def admin_export_user(target_admin_id: int, _=Depends(_require_superadmin)):
     )
 
 
-class LegacyLoginModel(BaseModel):
-    user_id: Optional[str] = None
-    email: Optional[str] = None
-    password: str
 
 
-# Legacy login endpoint — supports user_id or email key
-@app.post("/api/auth/login")
-def login_legacy(data: LegacyLoginModel):
-    uid = data.user_id or data.email or ""
-    return auth_login(AuthLoginModel(user_id=uid, password=data.password))
-
-
-# Superadmin login via user_id/password
+# Superadmin login via user_id/password (legacy endpoint)
 @app.post("/api/superadmin_login")
-def superadmin_login_legacy(data: LegacyLoginModel):
-    uid = data.user_id or data.email or "superadmin"
-    result = auth_login(AuthLoginModel(user_id=uid, password=data.password))
+def superadmin_login_legacy(data: AuthLoginModel):
+    result = auth_login(data)
     if result["data"]["role"] not in ("superadmin", "super_admin"):
         raise HTTPException(403, "Not a superadmin account")
     result["token"] = result["access_token"]
